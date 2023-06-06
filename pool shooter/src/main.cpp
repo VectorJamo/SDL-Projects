@@ -12,7 +12,27 @@ static const int HEIGHT = 600;
 static int mouseX, mouseY;
 
 static SDL_Texture* ball = nullptr;
-static SDL_Rect playerRect = {WIDTH/2 - 10, HEIGHT/2 - 10, 20, 20};
+static SDL_Rect playerRect = { WIDTH / 2 - 10, HEIGHT / 2 - 10, 20, 20 };
+static SDL_Rect wallRect = { WIDTH * 2 / 3, HEIGHT / 4, 30, 160 };
+
+struct vec2
+{
+	float x, y;
+
+	vec2() : x(0), y(0) {}
+	vec2(float x, float y) : x(x), y(y) {}
+};
+
+vec2 velocity(0, 0);
+float speed = 0;
+
+
+struct CollisionStatus
+{
+	bool xCollision, yCollision;
+
+	CollisionStatus(): xCollision(false), yCollision(false) {}
+};
 
 void Init()
 {
@@ -48,13 +68,7 @@ void Quit()
 	SDL_Quit();
 }
 
-struct vec2
-{
-	float x, y;
 
-	vec2(): x(0), y(0) {}
-	vec2 (float x, float y): x(x), y(y) {}
-};
 
 bool isWithin(int mouseX, int mouseY, const SDL_Rect& playerPos)
 {
@@ -78,16 +92,43 @@ vec2 normalize(vec2 vector)
 
 	return normal;
 }
+
+CollisionStatus checkCollision(SDL_Rect rect1, SDL_Rect rect2)
+{
+	CollisionStatus status;
+
+	SDL_Rect ballRect = rect1;
+
+	ballRect.x = ballRect.x + (velocity.x * speed);
+	if (!(ballRect.x > rect2.x + rect2.w || ballRect.x + ballRect.w < rect2.x || ballRect.y > rect2.y + rect2.h || ballRect.y + ballRect.h < rect2.y))
+		status.xCollision = true;
+	ballRect.x = rect1.x;
+
+	ballRect.x = ballRect.x - (velocity.x * speed);
+	if (!(ballRect.x > rect2.x + rect2.w || ballRect.x + ballRect.w < rect2.x || ballRect.y > rect2.y + rect2.h || ballRect.y + ballRect.h < rect2.y))
+		status.xCollision = true;
+	ballRect.x = rect1.x;
+
+	ballRect.y = ballRect.y - (velocity.y * speed);
+	if (!(ballRect.x > rect2.x + rect2.w || ballRect.x + ballRect.w < rect2.x || ballRect.y > rect2.y + rect2.h || ballRect.y + ballRect.h < rect2.y))
+		status.yCollision = true;
+	ballRect.y = rect1.y;
+
+	ballRect.y = ballRect.y + (velocity.y * speed);
+	if (!(ballRect.x > rect2.x + rect2.w || ballRect.x + ballRect.w < rect2.x || ballRect.y > rect2.y + rect2.h || ballRect.y + ballRect.h < rect2.y))
+		status.yCollision = true;
+	ballRect.y = rect1.y;
+
+	return status;
+}
 int main(int argc, char** argv)
 {
 	Init();
-	
+
 	bool running = true;
 	bool triggerHold = false;
 	bool shoot = false;
 
-	vec2 velocity(0, 0);
-	float speed = 0;
 	float friction = 0.5;
 
 	while (running)
@@ -162,8 +203,6 @@ int main(int argc, char** argv)
 				shoot = false;
 				speed = 0;
 			}
-			std::cout << "Player X,Y : " << playerRect.x + 10 << ", " << playerRect.y + 10 << std::endl;
-
 		}
 		else if (shoot == false && triggerHold == true) {
 
@@ -180,10 +219,21 @@ int main(int argc, char** argv)
 
 		if (playerRect.y < 0 || playerRect.y + playerRect.h > HEIGHT)
 			velocity.y = -velocity.y;
+
+		CollisionStatus stats = checkCollision(playerRect, wallRect);
+		if (stats.xCollision)
+		{
+			velocity.x = -velocity.x;
+		}
+		else if (stats.yCollision) {
+			velocity.y = -velocity.y;
+		}
 		
 		// Render 
-		
+
 		SDL_RenderCopy(renderer, ball, NULL, &playerRect);
+		SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+		SDL_RenderFillRect(renderer, &wallRect);
 
 		// Show the back buffer
 		SDL_RenderPresent(renderer);
