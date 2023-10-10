@@ -25,6 +25,8 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
     m_GrassTexture = new Texture(m_Renderer, "../assets/img/grass.png");
     m_DirtTexture = new Texture(m_Renderer, "../assets/img/dirt.png");
     m_SunTexture = new Texture(m_Renderer, "../assets/img/sun.png");
+    m_LavaTexture = new Texture(m_Renderer, "../assets/img/lava.png");
+    m_BlobTexture = new Texture(m_Renderer, "../assets/img/blob.png");
 
     // Tilemap
     m_Tilemap = 
@@ -38,14 +40,14 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
     "DG00000000000000000D"
     "D000000000000000000D"
     "D0G0000000000000000D"
-    "D00G000000000000000D"
+    "D00G00000B000000000D"
     "D00000000GGGGGGG000D"
     "D000000000000000000D"
     "D0000000000000000G0D"
     "D000000000000000000D"
     "D000000000G0G0GGGGGD"
     "D00000GGG00000DDDDDD"
-    "D0000GDDDDDDDDDDDDDD"
+    "D0000GDDDLLLLLDDDDDD"
     "D000GDDDDDDDDDDDDDDD"
     "DGGGDDDDDDDDDDDDDDDD";
 
@@ -55,18 +57,38 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
                 Sprite* grass = new Sprite(*m_GrassTexture);
                 grass->SetPosition(j*m_TileSize, i*m_TileSize);
                 grass->SetSize(m_TileSize, m_TileSize);
+                grass->tileIdentifier = 'G';
+
                 m_Tiles.push_back(grass);
 
             }else if(m_Tilemap[i*20 + j] == 'D'){
                 Sprite* dirt = new Sprite(*m_DirtTexture);
                 dirt->SetPosition(j*m_TileSize, i*m_TileSize);
                 dirt->SetSize(m_TileSize, m_TileSize);
+                dirt->tileIdentifier = 'D';
+
                 m_Tiles.push_back(dirt);
             }else if(m_Tilemap[i*20 + j] == 'S'){
                 Sprite* sun = new Sprite(*m_SunTexture);
                 sun->SetPosition(j*m_TileSize, i*m_TileSize);
                 sun->SetSize(m_TileSize, m_TileSize);
+                sun->tileIdentifier = 'S';
+
                 m_Tiles.push_back(sun);
+            }else if(m_Tilemap[i*20 + j] == 'L'){
+                Sprite* lava = new Sprite(*m_LavaTexture);
+                lava->SetPosition(j*m_TileSize, i*m_TileSize);
+                lava->SetSize(m_TileSize, m_TileSize);
+                lava->tileIdentifier = 'L';
+
+                m_Tiles.push_back(lava);
+            }else if(m_Tilemap[i*20 + j] == 'B'){
+                Sprite* blob = new Sprite(*m_BlobTexture);
+                blob->SetPosition(j*m_TileSize, i*m_TileSize);
+                blob->SetSize(m_TileSize, m_TileSize);
+                blob->tileIdentifier = 'B';
+
+                m_Tiles.push_back(blob);
             }
         }
     }
@@ -105,6 +127,9 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
 
     m_XCollision = false;
     m_YCollision = false;
+
+    // Blob
+    m_BlobSpeed = 0.5f;
 }
 Game::~Game()
 {
@@ -114,6 +139,8 @@ Game::~Game()
     delete m_GrassTexture;
     delete m_DirtTexture;
     delete m_SunTexture;
+    delete m_LavaTexture;
+    delete m_BlobTexture;
 
     for(int i = 0; i < 4; i++){
         delete m_PlayerRightTextures[i];
@@ -198,10 +225,16 @@ void Game::Update()
     for(auto& tile: m_Tiles){
         if(!(tile->GetPosX() > playerXNew + playerWidth || tile->GetPosX() + tileSize < playerXNew || tile->GetPosY() > m_Player->GetPosY() + playerHeight || tile->GetPosY() + tileSize < m_Player->GetPosY()))
         {
+            if(tile->tileIdentifier == 'B'){
+                gameRunning = false;
+            }
             m_XCollision = true;
         }
         if(!(tile->GetPosX() > m_Player->GetPosX() + playerWidth || tile->GetPosX() + tileSize < m_Player->GetPosX() || tile->GetPosY() > playerYNew + playerHeight || tile->GetPosY() + tileSize < playerYNew))
         {
+            if(tile->tileIdentifier == 'L'){
+                gameRunning = false;
+            }
             m_YCollision = true;
         }
     }    
@@ -218,6 +251,18 @@ void Game::Update()
         m_dy = 0.0f;
         m_Jump = false;
         m_VelUpJump = 30.0f;
+    }
+
+    // Update the position of enemies and moving platforms
+    for(auto& tile: m_Tiles){
+        if(tile->tileIdentifier == 'B'){
+            tile->SetPosition(tile->GetPosX() + m_BlobSpeed, tile->GetPosY());
+            if(tile->GetPosX() + tile->GetWidth() > 800.0f){
+                m_BlobSpeed = -m_BlobSpeed;
+            }else if(tile->GetPosX() < 450.0f){
+                m_BlobSpeed = abs(m_BlobSpeed);
+            }
+        }
     }
 
     // Set the position
@@ -241,8 +286,13 @@ void Game::Render(){
     // Player
     m_Player->Draw(m_Renderer);
 
-    // Draw the grid
+
+    // Draw the grids
 #if 1
+    SDL_SetRenderDrawColor(m_Renderer, 255, 0, 0, 255);
+    SDL_Rect rect = {m_Player->GetPosX(), m_Player->GetPosY(), m_Player->GetWidth(), m_Player->GetHeight()};
+    SDL_RenderDrawRect(m_Renderer, &rect);
+
     SDL_SetRenderDrawColor(m_Renderer, 255, 255, 255, 255);
     for(int i = 0; i < 20; i++){
         SDL_RenderDrawLine(m_Renderer, m_TileSize*i, 0, m_TileSize*i, m_Height);

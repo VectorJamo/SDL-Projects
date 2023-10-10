@@ -24,6 +24,8 @@ class Game
         Texture* m_GrassTexture;
         Texture* m_DirtTexture;
         Texture* m_SunTexture;
+        Texture* m_LavaTexture;
+        Texture* m_BlobTexture;
 
         const char* m_Tilemap;
         std::vector<Sprite*> m_Tiles;
@@ -41,6 +43,9 @@ class Game
         float m_VelUpJump, m_VelDownGravity;
         bool m_Jump, m_InAir;
         bool m_XCollision, m_YCollision;
+
+        // Blob
+        float m_BlobSpeed;
         
     public:
         bool gameRunning; 

@@ -17,7 +17,11 @@ class Sprite
 		Texture m_Texture;
 		float m_PositionX, m_PositionY;
 		int m_Width, m_Height;
-		SDL_Rect m_ClipRect;		
+		SDL_Rect m_ClipRect;
+
+	public:
+		char tileIdentifier;
+
 
 	public:
 		Sprite(const Texture& texture);
