@@ -26,6 +26,7 @@ class Game
         Texture* m_SunTexture;
         Texture* m_LavaTexture;
         Texture* m_BlobTexture;
+        Texture* m_DoorTexture;
 
         const char* m_Tilemap;
         std::vector<Sprite*> m_Tiles;
@@ -46,6 +47,13 @@ class Game
 
         // Blob
         float m_BlobSpeed;
+
+        // Platform
+        Texture* m_PlatformTexture;
+        Sprite* m_Platform;
+
+        float m_PlatformSpeed;
+        float m_PlatformDistance, m_MaxPlatformDistance;
         
     public:
         bool gameRunning; 

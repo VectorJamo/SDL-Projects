@@ -27,6 +27,7 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
     m_SunTexture = new Texture(m_Renderer, "../assets/img/sun.png");
     m_LavaTexture = new Texture(m_Renderer, "../assets/img/lava.png");
     m_BlobTexture = new Texture(m_Renderer, "../assets/img/blob.png");
+    m_DoorTexture = new Texture(m_Renderer, "../assets/img/exit.png");
 
     // Tilemap
     m_Tilemap = 
@@ -34,7 +35,7 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
     "D000000000000000000D"
     "D0S0000000000000000D"
     "D0000G00000000000GGD"
-    "D000000000GG0000000D"
+    "D000000000GGE000000D"
     "D00000000000GG00000D"
     "D000GGGG00000000000D"
     "DG00000000000000000D"
@@ -89,6 +90,13 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
                 blob->tileIdentifier = 'B';
 
                 m_Tiles.push_back(blob);
+            }else if(m_Tilemap[i*20 + j] == 'E'){
+                Sprite* door = new Sprite(*m_DoorTexture);
+                door->SetPosition(j*m_TileSize, i*m_TileSize);
+                door->SetSize(m_TileSize, m_TileSize);
+                door->tileIdentifier = 'E';
+
+                m_Tiles.push_back(door);
             }
         }
     }
@@ -130,6 +138,16 @@ Game::Game(SDL_Window* window, SDL_Renderer* renderer)
 
     // Blob
     m_BlobSpeed = 0.5f;
+
+    // Platform
+    m_PlatformTexture = new Texture(m_Renderer, "../assets/img/platform.png");
+    m_Platform = new Sprite(*m_PlatformTexture);
+    m_Platform->SetSize(2 * m_TileSize, m_TileSize/2);
+    m_Platform->SetPosition(5.0f * m_TileSize, 9.0f * m_TileSize);
+
+    m_PlatformDistance = 0.0f;
+    m_MaxPlatformDistance = 200.0f;
+    m_PlatformSpeed = 0.5f;
 }
 Game::~Game()
 {
@@ -141,6 +159,10 @@ Game::~Game()
     delete m_SunTexture;
     delete m_LavaTexture;
     delete m_BlobTexture;
+    delete m_PlatformTexture;
+    delete m_DoorTexture;
+
+    delete m_Platform;
 
     for(int i = 0; i < 4; i++){
         delete m_PlayerRightTextures[i];
@@ -223,19 +245,36 @@ void Game::Update()
     const float tileSize = 50.0f;
 
     for(auto& tile: m_Tiles){
-        if(!(tile->GetPosX() > playerXNew + playerWidth || tile->GetPosX() + tileSize < playerXNew || tile->GetPosY() > m_Player->GetPosY() + playerHeight || tile->GetPosY() + tileSize < m_Player->GetPosY()))
-        {
-            if(tile->tileIdentifier == 'B'){
-                gameRunning = false;
+        if(tile->tileIdentifier != 'S'){
+            // Player-tile collision
+            if(!(tile->GetPosX() > playerXNew + playerWidth || tile->GetPosX() + tileSize < playerXNew || tile->GetPosY() > m_Player->GetPosY() + playerHeight || tile->GetPosY() + tileSize < m_Player->GetPosY())){
+                if(tile->tileIdentifier == 'B' || tile->tileIdentifier == 'E'){
+                    gameRunning = false;
+                }
+                m_XCollision = true;
             }
-            m_XCollision = true;
-        }
-        if(!(tile->GetPosX() > m_Player->GetPosX() + playerWidth || tile->GetPosX() + tileSize < m_Player->GetPosX() || tile->GetPosY() > playerYNew + playerHeight || tile->GetPosY() + tileSize < playerYNew))
-        {
-            if(tile->tileIdentifier == 'L'){
-                gameRunning = false;
+            if(!(tile->GetPosX() > m_Player->GetPosX() + playerWidth || tile->GetPosX() + tileSize < m_Player->GetPosX() || tile->GetPosY() > playerYNew + playerHeight || tile->GetPosY() + tileSize < playerYNew)){
+                if(tile->tileIdentifier == 'L' || tile->tileIdentifier == 'E'){
+                    gameRunning = false;
+                }
+                m_YCollision = true;
             }
-            m_YCollision = true;
+
+            // Player-platform collision
+            if(!(m_Platform->GetPosX() > playerXNew + playerWidth || m_Platform->GetPosX() + m_Platform->GetWidth() < playerXNew || m_Platform->GetPosY() > m_Player->GetPosY() + playerHeight || m_Platform->GetPosY() + m_Platform->GetHeight() < m_Player->GetPosY())){
+                m_XCollision = true;
+            }
+            if(!(m_Platform->GetPosX() > m_Player->GetPosX() + playerWidth || m_Platform->GetPosX() + m_Platform->GetWidth() < m_Player->GetPosX() || m_Platform->GetPosY() > playerYNew + playerHeight || m_Platform->GetPosY() + m_Platform->GetHeight() < playerYNew)){
+                m_YCollision = true;
+
+                // Check if player has collided from the top
+                if(playerYNew < m_Platform->GetPosY()){
+                    // Make the player go up with the tile
+                    m_Player->SetPosition(m_Player->GetPosX(), m_Platform->GetPosY() - m_Player->GetHeight() - 2.0f); // This -2.0f is important because if not included then
+                    // the x-collision between player and platform will always be true
+                }
+            }
+
         }
     }    
 
@@ -264,9 +303,17 @@ void Game::Update()
             }
         }
     }
+    m_PlatformDistance += m_PlatformSpeed;
+    if(m_PlatformDistance > m_MaxPlatformDistance){
+        m_PlatformSpeed = -(m_PlatformSpeed);
+    }else if(m_PlatformDistance < 0.0f){
+        m_PlatformSpeed = abs(m_PlatformSpeed);
+    }
 
     // Set the position
     m_Player->SetPosition(m_Player->GetPosX() + m_dx, m_Player->GetPosY() + m_dy);
+    m_Platform->SetPosition(m_Platform->GetPosX(), (9.0f * m_TileSize) + m_PlatformDistance); // 9.0f * m_TileSize -> is the inital platform distance in the Y-dir
+
     m_dx = 0.0f;
     m_dy = 0.0f;
     m_XCollision = false;
@@ -285,12 +332,12 @@ void Game::Render(){
     }
     // Player
     m_Player->Draw(m_Renderer);
-
+    m_Platform->Draw(m_Renderer);
 
     // Draw the grids
-#if 1
+#if 0
     SDL_SetRenderDrawColor(m_Renderer, 255, 0, 0, 255);
-    SDL_Rect rect = {m_Player->GetPosX(), m_Player->GetPosY(), m_Player->GetWidth(), m_Player->GetHeight()};
+    SDL_Rect rect = {static_cast<int>(m_Player->GetPosX()), static_cast<int>(m_Player->GetPosY()), static_cast<int>(m_Player->GetWidth()), static_cast<int>(m_Player->GetHeight())};
     SDL_RenderDrawRect(m_Renderer, &rect);
 
     SDL_SetRenderDrawColor(m_Renderer, 255, 255, 255, 255);
