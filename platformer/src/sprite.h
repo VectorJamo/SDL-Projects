@@ -22,7 +22,6 @@ class Sprite
 	public:
 		char tileIdentifier;
 
-
 	public:
 		Sprite(const Texture& texture);
 
